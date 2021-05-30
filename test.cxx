@@ -19,12 +19,12 @@ int main(int argc, char *argv[]) {
 
    if (operator_name == "BN") {
       std::cout << "-----------------------------------------------------------------" << std::endl;
-      failed |= testROperatorBN<float>(1.E-1);
+      failed |= testROperatorBN<float>(2.E-1);
       std::cout << (failed? "Test Failed" : "Test Passed" ) << std::endl;
 
       return failed;
    }
-   
+
    else if (operator_name == "Conv") {
       std::cout << "-----------------------------------------------------------------" << std::endl;
       failed |= testROperatorConv<float>(1.E-3);

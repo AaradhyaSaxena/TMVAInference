@@ -51,11 +51,8 @@ void ROperatorBN<T>::Forward_blas(	const RTensor<T> &X,
 		   std::size_t height    = X.GetShape()[2];
 		   std::size_t width     = X.GetShape()[3];
 
-		   // Initialize output vector
-		   // RTensor<T> Y({batchSize, channels, height, width});
-
 		   // Batch normalization operation
-		   std::size_t normalized_x = 0;
+		   T normalized_x = 0;
 		   for (std::size_t b = 0; b < batchSize; b++) {
 				for (std::size_t c = 0; c < channels; c++) {
 					for (std::size_t h = 0; h < height; h++) {
