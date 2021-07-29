@@ -50,19 +50,73 @@ void ROperatorBN<T>::Forward_blas(	const RTensor<T> &X,
 		   std::size_t channels  = X.GetShape()[1];
 		   std::size_t height    = X.GetShape()[2];
 		   std::size_t width     = X.GetShape()[3];
+		   static const int n = batchSize * channels * height * width;
 
-		   // Batch normalization operation
-		   T normalized_x = 0;
-		   for (std::size_t b = 0; b < batchSize; b++) {
-				for (std::size_t c = 0; c < channels; c++) {
-					for (std::size_t h = 0; h < height; h++) {
-						for (std::size_t w = 0; w < width; w++) {
-							normalized_x = (X(b, c, h, w) - input_mean(c))/ sqrt(input_var(c) + fepsilon);
-							Y(b, c, h, w) = (normalized_x * scale(c)) + B(c);
-						}
+			//// BN Blas implmentation			
+			// Intialize A
+			T* A = nullptr;
+			A = new T[channels];
+			for (std::size_t c = 0; c < channels; c++) {
+				A[c] = scale(c)/ sqrt(input_var(c) + fepsilon);
+			}
+
+			// Broadcast A, bias and input_mean to shape_X
+			T* Ba = nullptr;
+			Ba = new T[n];
+			T* Bmean = nullptr;
+			Bmean = new T[n];
+			T* Bbias = nullptr;
+			Bbias = new T[n];
+
+			size_t bs = 0, ch = 0, h = 0, w = 0;
+			for(ch=0; ch<channels; ch++){
+				for(h=0; h<height; h++){
+					for(w=0; w<width; w++){
+						Ba[bs*channels*height*width + ch*height*width + h*width + w] = A[ch];
+						Bmean[bs*channels*height*width + ch*height*width + h*width + w] = input_mean(ch);
+						Bbias[bs*channels*height*width + ch*height*width + h*width + w] = B(ch);
 					}
 				}
 			}
+			size_t Batchoffset = channels*height*width;
+			for(bs = 1; bs<batchSize; bs++){
+				std::copy(Ba, Ba+Batchoffset, Ba+(bs*Batchoffset));
+				std::copy(Bmean, Bmean+Batchoffset, Bmean+(bs*Batchoffset));
+				std::copy(Bbias, Bbias+Batchoffset, Bbias+(bs*Batchoffset));
+			}
+			
+			// Initialize C with X
+			T* C = nullptr;
+			C = new T[n];
+			std::copy(X.GetData(), (X.GetData()+n), C);
+
+			/// blas saxpy (C = X - Bmean)
+			int incx = 1;
+			int incy = 1;
+			float alpha = -1.;
+			BLAS::saxpy_(&n, &alpha, Bmean, &incx, C, &incy);
+			
+			// blas smbv (Y = CxBa + Bbias)
+			static const int k = 0; 
+			static const double alpha2 = 1.0;
+			static const int lda = 1;
+			static const double beta = 1;
+			incx = 1; incy = 1;
+
+			//sbmv
+			// BLAS::dsbmv_("L", &n, &k, &alpha2, C, &lda, Ba, &incx, &beta, Bbias, &incy);
+
+			// sdot
+			// T* temp = nullptr;
+			// temp = new T[n];
+			// temp = BLAS::sdot_(&n, C, &incx, Ba, &incy);
+
+			// Y = CxBa + Bbias) and Y = Bbias;
+			for(std::size_t i=0; i<n; i++){
+				Y((i/(channels*height*width)%batchSize), (i/(height*width)%channels), (i/(width)%height), (i%width)) = C[i]*Ba[i] + Bbias[i];
+				// std::cout<<Y((i/(channels*height*width)%batchSize), (i/(height*width)%channels), (i/(width)%height), (i%width))<<" ";
+			}
+			// std::cout<<std::endl;
 	   }	   
    }
    else{
