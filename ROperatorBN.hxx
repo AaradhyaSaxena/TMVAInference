@@ -52,8 +52,7 @@ void ROperatorBN<T>::Forward_blas(	const RTensor<T> &X,
 		   std::size_t width     = X.GetShape()[3];
 		   static const int n = batchSize * channels * height * width;
 
-			//// BN Blas implmentation			
-			// Intialize A
+		    // Intialize A
 			T* A = nullptr;
 			A = new T[channels];
 			for (std::size_t c = 0; c < channels; c++) {
@@ -98,25 +97,17 @@ void ROperatorBN<T>::Forward_blas(	const RTensor<T> &X,
 			
 			// blas smbv (Y = CxBa + Bbias)
 			static const int k = 0; 
-			static const double alpha2 = 1.0;
+			static const float alpha2 = 1.0;
 			static const int lda = 1;
-			static const double beta = 1;
+			static const float beta = 1;
 			incx = 1; incy = 1;
+			BLAS::ssbmv_("L", &n, &k, &alpha2, C, &lda, Ba, &incx, &beta, Bbias, &incy);
 
-			//sbmv
-			// BLAS::dsbmv_("L", &n, &k, &alpha2, C, &lda, Ba, &incx, &beta, Bbias, &incy);
-
-			// sdot
-			// T* temp = nullptr;
-			// temp = new T[n];
-			// temp = BLAS::sdot_(&n, C, &incx, Ba, &incy);
-
-			// Y = CxBa + Bbias) and Y = Bbias;
 			for(std::size_t i=0; i<n; i++){
-				Y((i/(channels*height*width)%batchSize), (i/(height*width)%channels), (i/(width)%height), (i%width)) = C[i]*Ba[i] + Bbias[i];
-				// std::cout<<Y((i/(channels*height*width)%batchSize), (i/(height*width)%channels), (i/(width)%height), (i%width))<<" ";
+				Y((i/(channels*height*width)%batchSize), (i/(height*width)%channels), (i/(width)%height), (i%width)) = Bbias[i];
+				std::cout<<Y((i/(channels*height*width)%batchSize), (i/(height*width)%channels), (i/(width)%height), (i%width))<<" ";
 			}
-			// std::cout<<std::endl;
+			std::cout<<std::endl;
 	   }	   
    }
    else{
